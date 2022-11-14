@@ -377,7 +377,7 @@ function requestTranslate() {
     text: formData.theme,
     target_lang: 'EN',
     source_lang: 'ZH',
-    auth_key: settingForm.apiKey,
+    auth_key: settingForm.authKey,
   })
   p.catch(err => {
     toastMessage.value = err.message
