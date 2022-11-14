@@ -313,13 +313,31 @@ watch(article, () => {
 })
 
 onMounted(() => {
-  let authKey = localStorage.getItem("authKey")
-  if (authKey) {
-    settingForm.authKey = authKey
+  let hash = location.hash
+  let k1, k2
+  if (hash) {
+    hash = hash.slice(1)
+    let split = hash.split('&').map(c => c.split('='))
+
+    k1 = split.find(c => c[0] === 'k1')?.[1]
+    if (k1) {
+      settingForm.apiKey = k1
+      localStorage.setItem("apiKey", k1)
+    }
+
+    k2 = split.find(c => c[0] === 'k2')?.[1]
+    if (k2) {
+      settingForm.authKey = k2
+      localStorage.setItem("authKey", k2)
+    }
   }
-  let apiKey = localStorage.getItem("apiKey")
-  if (apiKey) {
-    settingForm.apiKey = apiKey
+  if (!k1) {
+    let apiKey = localStorage.getItem("apiKey")
+    if (apiKey) settingForm.apiKey = apiKey
+  }
+  if (!k2) {
+    let authKey = localStorage.getItem("authKey")
+    if (authKey) settingForm.authKey = authKey
   }
   generateOpenai()
   quillInstance = quill.value.getQuill()
@@ -486,6 +504,10 @@ function onSaveAPIKey() {
       dialog.value = false
       localStorage.setItem("authKey", settingForm.authKey || '')
       localStorage.setItem("apiKey", settingForm.apiKey || '')
+      let hash = '#'
+      if (settingForm.apiKey) hash += 'k1=' + settingForm.apiKey
+      if (settingForm.authKey) hash += '&k2=' + settingForm.authKey
+      if (hash !== '#') location.hash = hash
       generateOpenai()
     }
   })
