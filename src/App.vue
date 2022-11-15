@@ -182,7 +182,17 @@ const quillOptions = {
 const THEME = "theme"
 const OUTLINE = "outline"
 const DEEPL = 'Translate to English'
-const MOODS = ['positive', 'excited', 'gentle', 'formal', 'casual', 'witty']
+const ESSAY_OUTLINE = 'Essay Outline'
+const OUTLINE_TO_PARAGRAPH = 'Outline to Paragraph'
+const KEYWORDS_TO_PARAGRAPH = 'Keywords to Paragraph'
+const TONE_REWRITE = 'Tone Rewrite'
+const POSITIVE = 'positive'
+const EXCITED = 'excited'
+const GENTLE = 'gentle'
+const FORMAL = 'formal'
+const CASUAL = 'casual'
+const WITTY = 'witty'
+const MOODS = [POSITIVE, EXCITED, GENTLE, FORMAL, CASUAL, WITTY]
 const TASKS = [
   {
     type: DEEPL,
@@ -194,7 +204,7 @@ const TASKS = [
     },
   },
   {
-    type: "Essay Outline",
+    type: ESSAY_OUTLINE,
     theme: {
       title: "Essay Title",
       placeholder: "e.g. The dramatic fall of cocoa prices.",
@@ -208,7 +218,7 @@ const TASKS = [
     }
   },
   {
-    type: 'Outline to Paragraph',
+    type: OUTLINE_TO_PARAGRAPH,
     theme: {
       title: "Essay Topic",
       placeholder: "e.g. The essay is about the benefits of baking your own bread at home. It shows that baking can reduce stress.",
@@ -230,7 +240,7 @@ const TASKS = [
     }
   },
   {
-    type: 'Keywords to Paragraph',
+    type: KEYWORDS_TO_PARAGRAPH,
     theme: {
       title: "Text to expand",
       placeholder: "Use keywords or short sentencenes.",
@@ -245,25 +255,88 @@ const TASKS = [
     }
   },
   {
-    type: "Tone Rewrite",
+    type: TONE_REWRITE,
     theme: {
       title: "Text to rewrite",
       placeholder: 'Add the text you want to rewrite.',
       help: "How to give a effective brief.",
       maxlength: 1000
     },
-    config: {
-      temperature: 0.5,
-      frequency_penalty: 0.2,
-    },
     genPrompt: (mood, text) => {
-      let prompt = `rewrite paragraph`
-      if (text) prompt += ` below\n Original: ${text}.\n Rewrite:`
-      if (mood) prompt = `in a ${mood} style ` + prompt
+      let prompt = ''
+      if (!mood) prompt = 'completely summarize and rewrite differently every single sentence below completely based on your understanding'
+      else prompt = rewriteConfigs[mood].prompt
+      if (text) prompt += `\nQuote: ${text}\nRewrite:`
       return prompt
-    }
+    },
   },
 ]
+
+/** rewrite时，每种mood对应不同的prompt和openaiConfig */
+const rewriteConfigs = {
+  [POSITIVE]: {
+    config: {
+      temperature: 1.1,
+      max_tokens: 600,
+      top_p: 0.9,
+      frequency_penalty: 0.5,
+      presence_penalty: 0.5
+    },
+    prompt: 'completely summarize and rewrite reconstruct the qoute and every sentence below completely based on your understanding, using very very positive words, encouraging words, optimistic words',
+  },
+  [EXCITED]: {
+    config: {
+      temperature: 1.1,
+      max_tokens: 600,
+      top_p: 0.9,
+      frequency_penalty: 0.5,
+      presence_penalty: 0.5
+    },
+    prompt: 'completely rewrite reconstruct the qoute and every sentence below completely based on your understanding, using very exciting words, surprising words, amazing words, new words, like you are very excited',
+  },
+  [GENTLE]: {
+    config: {
+      temperature: 1.2,
+      max_tokens: 600,
+      top_p: 1,
+      frequency_penalty: 0.9,
+      presence_penalty: 0.9
+    },
+    prompt: 'completely summarize and rewrite refine reconstruct sentences below completely based on your understanding, using very gentle words, nice words, beautiful words, and kind words for 2nd grade students',
+  },
+  [FORMAL]: {
+    config: {
+      temperature: 1.2,
+      max_tokens: 600,
+      top_p: 0.9,
+      frequency_penalty: 0.9,
+      presence_penalty: 0.9
+    },
+    prompt: 'completely summarize and rewrite the quote below and merge and reconstruct sentences below completely based on your understanding, using very formal words, professional words, adavanced words, and academic words, pretending you are a professor',
+  },
+  [CASUAL]: {
+    config: {
+      temperature: 1.2,
+      max_tokens: 600,
+      top_p: 1,
+      frequency_penalty: 0.9,
+      presence_penalty: 0.9
+    },
+    prompt: 'completely rewrite differently refine every single sentence differently below completely based on your understanding, using very casual words, street words, and easy words for 2nd grade students',
+  },
+  [WITTY]: {
+    config: {
+      temperature: 1.2,
+      max_tokens: 600,
+      top_p: 1,
+      frequency_penalty: 0.9,
+      presence_penalty: 0.9
+    },
+    prompt: 'completely summarize and rewrite differently every single sentence below completely based on your understanding, using very witty words, funny words, and joke words, like you are telling a joke',
+  },
+}
+
+
 const TASK_TYPES = TASKS.map((t) => t.type)
 let quill = ref(null) //vue的quillRef，仅有部分api
 let quillInstance = ref(null) //原生的quill对象，包含所有api
@@ -372,6 +445,20 @@ function onToggleMood(mood) {
  * 除了deepl的，都走这个请求
  */
 function requestAI() {
+  let extraConfig
+  if (selectedType.value.type === TONE_REWRITE) {
+    extraConfig = {
+      temperature: 1.2,
+      max_tokens: 600,
+      top_p: 1,
+      frequency_penalty: 0.9,
+      presence_penalty: 0.9
+    }
+    if (formData.mood) extraConfig = {
+      ...extraConfig,
+      ...rewriteConfigs[formData.mood].config
+    }
+  }
   let p = openai.value.createCompletion({
     model: "text-davinci-002",
     prompt: selectedType.value?.genPrompt(formData.mood, formData.theme),
@@ -381,7 +468,7 @@ function requestAI() {
     frequency_penalty: 0.0,
     presence_penalty: 0.0,
     n: 2,
-    ...selectedType.value.config
+    ...extraConfig
   })
   p.catch(err => {
     toastMessage.value = err.message
