@@ -120,8 +120,9 @@
 
       <div class="flex-1 content flex flex-column">
         <QuillEditor theme="snow" contentType="text" :options="quillOptions" ref="quill" v-model:content="article"
-          @selectionChange="onArticleSelect" class="flex-1 pa-4 pb-0 border-0 overflow-y-auto" id="quill-editor"
-          draggable="false" />
+          @selectionChange="onArticleSelect" @update:content="onContentChange"
+          class="flex-1 pa-4 pb-0 border-0 overflow-y-auto" id="quill-editor" draggable="false"
+          @textChange="onTextChange" />
         <!-- <textarea id="article" name="" cols="30" rows="10" v-model="article" placeholder="Your article" class="pa-5"
           @change="onContentChange" @select="onArticleSelect" @click="onContentClick"
           @keydown="onContentKeyboardEvent"></textarea> -->
@@ -276,8 +277,7 @@ const selectingForCopy = ref(false)
 const selectingForCopyType = ref(THEME)
 const article = ref('')
 const openAISettingForm = ref(null)
-const deepLSettingForm = ref(null)
-const mousePosition = ref(0)
+const mousePosition = ref({ index: 0, length: 0 })
 const openai = ref(null)
 const toast = ref(false)
 const toastMessage = ref('')
@@ -306,6 +306,8 @@ const invalid = computed(() => {
 const isNeedReset = computed(() => formData.theme || formData.outline)
 
 watch(() => formData.type, onReset)
+
+// watch(() => mousePosition.value, (n) => { console.log(n) })
 
 watch(article, () => {
   selectingForCopy.value = false
@@ -442,21 +444,38 @@ function setText(text) {
 }
 
 /**
+ * 文章内容改变时记录光标位置
+ */
+function onContentChange() {
+  setTimeout(() => {
+    mousePosition.value = quillInstance.getSelection()
+  })
+}
+
+function onTextChange({ delta: { ops } }) {
+  if (ops.find(o => o.insert === '\n')) { //当按下回车换行时，quill有个bug是光标的index并不会+1，但是后面的回车又是正常的，要处理一下
+    mousePosition.value.index++
+  }
+}
+
+/**
  * copy suggestion并自动填充到文章中
  * @param {*} index 被copy项的suggestions的index
  */
-function onCopySuggestion(index) {
-  let value = suggestions.value[index]
-  if (mousePosition.value !== undefined) {
-    let t = article.value.slice(0, mousePosition.value) + value + article.value.slice(mousePosition.value)
+function onCopySuggestion(i) {
+  let value = suggestions.value[i]
+  const { index, length } = mousePosition.value
+
+  if (length) {  //如果之前已经选中了文章中的某一段，那就替换
+    let t = article.value.slice(0, index) + value + article.value.slice(index + length)
     setText(t)
-  } else {
-    setText(article.value + " " + value)
+  } else {  //否则，应该把内容插入到记录下的光标位置去
+    let t = article.value.slice(0, index) + value + article.value.slice(index)
+    setText(t)
   }
-  let temp = mousePosition.value
-  quillInstance.setSelection(temp + value.length)
-  mousePosition.value = temp + value.length
-  suggestions.value.splice(index, 1)
+  quillInstance.setSelection(index + value.length)
+  mousePosition.value.index = index + value.length
+  suggestions.value.splice(i, 1)
 }
 
 /**
@@ -482,10 +501,10 @@ function onCopyAll() {
  */
 function onArticleSelect(param) {
   const { range } = param
-  if (range.length === 0) {
-    mousePosition.value = range.index
-    return
-  }
+  if (!range) return
+  mousePosition.value = range
+  if (range.length === 0) return
+
   const content = getContent()
   if (!selectingForCopy.value) return
   formData[selectingForCopyType.value] = content.slice(range.index, range.index + range.length)
@@ -555,6 +574,7 @@ html {
   width: 400px;
   background-color: #fcfcfc;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .mood-wrap {
@@ -650,6 +670,7 @@ html {
 
 .ql-editor {
   line-height: 1.5 !important;
+  word-break: break-word;
 }
 
 .v-textarea--auto-grow .v-field__input {
