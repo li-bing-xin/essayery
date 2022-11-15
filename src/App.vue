@@ -34,7 +34,7 @@
           </div>
         </div>
         <p class="text-subtitle-2 font-weight-regular no-select">
-          Let AI generate text suggestions for you.
+          Write like a pro.
         </p>
         <v-form ref="form" lazy-validation class="mt-4">
           <v-select variant="outlined" v-model="formData.type" :items="TASK_TYPES"
@@ -61,19 +61,18 @@
             </v-textarea>
           </div>
 
-          <div v-if="selectedType.subheading">
+          <div v-if="selectedType.outline">
             <h3 class="mb-3 no-select">
-              {{ selectedType.subheading.title }}
+              {{ selectedType.outline.title }}
             </h3>
 
-            <v-textarea variant="outlined" ref="subheadingRef" auto-grow v-model="formData.subheading" :rows="1"
-              :max-rows="2" :counter="selectedType.subheading.maxlength"
-              :counter-value="() => formData.subheading.length" :placeholder="selectedType.subheading.placeholder"
-              color="primary">
+            <v-textarea variant="outlined" ref="outlineRef" auto-grow v-model="formData.outline" :rows="1" :max-rows="2"
+              :counter="selectedType.outline.maxlength" :counter-value="() => formData.outline.length"
+              :placeholder="selectedType.outline.placeholder" color="primary">
               <template v-slot:append-inner>
                 <v-tooltip text="Copy from the right">
                   <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(SUBHEADING)"
+                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(OUTLINE)"
                       class="hover-primary"></v-icon>
                   </template>
                 </v-tooltip>
@@ -81,14 +80,14 @@
             </v-textarea>
           </div>
 
-          <div v-if="formData.type !== DEEPL" class="mb-3">
-            <h3 class="mb-3 no-select">Tonality</h3>
-
-            <v-btn class="mb-1 mr-1" :variant="formData.mood === mood ? 'tonal' : 'text'"
-              :color="formData.mood === mood ? 'primary' : ''" v-for="mood in MOODS" :key="mood" size="small"
-              @click="onToggleMood(mood)">
-              {{ mood }}
-            </v-btn>
+          <div v-if="formData.type !== DEEPL" class="mb-3 pr-15">
+            <h3 class="mb-3 no-select">Tone</h3>
+            <div v-for="mood in MOODS" :key="mood" class="mood-wrap">
+              <v-btn class="mb-1 mr-1" :variant="formData.mood === mood ? 'tonal' : 'text'"
+                :color="formData.mood === mood ? 'primary' : ''" size="small" @click="onToggleMood(mood)">
+                {{ mood }}
+              </v-btn>
+            </div>
           </div>
 
           <div class="btns">
@@ -180,7 +179,7 @@ const quillOptions = {
 }
 
 const THEME = "theme"
-const SUBHEADING = "subheading"
+const OUTLINE = "outline"
 const DEEPL = 'Translate to English'
 const MOODS = ['positive', 'excited', 'gentle', 'formal', 'casual', 'witty']
 const TASKS = [
@@ -210,14 +209,14 @@ const TASKS = [
   {
     type: 'Outline to Paragraph',
     theme: {
-      title: "The essay is about",
+      title: "Essay Topic",
       placeholder: "e.g. The essay is about the benefits of baking your own bread at home. It shows that baking can reduce stress.",
       help: "How to give a effective brief.",
       maxlength: 200,
       rows: 3
     },
-    subheading: {
-      title: "Subheading",
+    outline: {
+      title: "Outline",
       placeholder: "e.g. The science behind baking",
       help: "How to give a effective brief.",
       maxlength: 600,
@@ -271,7 +270,7 @@ const dialog = ref(false)
 const loading = ref(false)
 const form = ref(null)
 const themeRef = ref(null)
-const subheadingRef = ref(null)
+const outlineRef = ref(null)
 const suggestions = ref([])
 const selectingForCopy = ref(false)
 const selectingForCopyType = ref(THEME)
@@ -289,7 +288,7 @@ const settingForm = reactive({
 const formData = reactive({
   type: TASKS[0].type,
   theme: "",
-  subheading: "",
+  outline: "",
   mood: ''
 })
 const wordsCount = computed(() => {
@@ -301,10 +300,10 @@ const selectedType = computed(() =>
 )
 const invalid = computed(() => {
   if (selectedType.value.theme && !formData.theme.trim()) return true
-  if (selectedType.value.subheading && !formData.subheading.trim()) return true
+  if (selectedType.value.outline && !formData.outline.trim()) return true
   return false
 })
-const isNeedReset = computed(() => formData.theme || formData.subheading)
+const isNeedReset = computed(() => formData.theme || formData.outline)
 
 watch(() => formData.type, onReset)
 
@@ -354,7 +353,7 @@ function generateOpenai() {
 
 function onReset() {
   formData.theme = ""
-  formData.subheading = ""
+  formData.outline = ""
   formData.mood = ""
 }
 
@@ -491,7 +490,7 @@ function onArticleSelect(param) {
   if (!selectingForCopy.value) return
   formData[selectingForCopyType.value] = content.slice(range.index, range.index + range.length)
   if (selectingForCopyType.value === THEME) themeRef.value?.focus()
-  if (selectingForCopyType.value === SUBHEADING) subheadingRef.value?.focus()
+  if (selectingForCopyType.value === OUTLINE) outlineRef.value?.focus()
   selectingForCopy.value = false
 }
 
@@ -556,6 +555,11 @@ html {
   width: 400px;
   background-color: #fcfcfc;
   overflow-y: auto;
+}
+
+.mood-wrap {
+  display: inline-block;
+  width: 85px;
 }
 
 .content {
