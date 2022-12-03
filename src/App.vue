@@ -58,6 +58,14 @@
                   </template>
                 </v-tooltip>
               </template>
+              <template v-slot:append-icon>
+                <v-tooltip text="Copy from the right">
+                  <template v-slot:activator="{ props }">
+                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(THEME)"
+                      class="hover-primary"></v-icon>
+                  </template>
+                </v-tooltip>
+              </template>
             </v-textarea>
           </div>
 
@@ -101,6 +109,11 @@
         </v-form>
 
         <div class="suggestions mt-5">
+          <div v-if="(costTime && loading)" class="text-subtitle-2 text-center">
+            It will take about {{costTime}} seconds.
+            <br>
+            <p v-if="timeCount">{{timeCount}} seconds passed...</p>
+          </div>
           <div class="text-subtitle-2 font-weight-regular" v-if="suggestions.length">
             Add suggestions to the editor
             <v-btn @click="suggestions.length = 0" class="ml-2" size="x-small" variant="tonal">
@@ -128,11 +141,19 @@
           @keydown="onContentKeyboardEvent"></textarea> -->
 
         <div class="article-tools d-flex justify-space-between align-center pa-4 bg-white">
-          <v-btn class="mr-10" variant="tonal" color="primary" @click="onCopyAll">
+
+          <v-btn class="mr-3" variant="tonal" color="primary" @click="onCopyAll">
             Copy!
           </v-btn>
 
           <v-spacer></v-spacer>
+          <v-tooltip text="clear all" location="top">
+            <template v-slot:activator="{ props }">
+              <v-btn icon="mdi-delete" size="small" class="mr-3" variant="tonal" @click="onClearArticle"
+                v-bind="props">
+              </v-btn>
+            </template>
+          </v-tooltip>
 
           <v-tooltip text="back" location="top">
             <template v-slot:activator="{ props }">
@@ -342,6 +363,9 @@ let quill = ref(null) //vue的quillRef，仅有部分api
 let quillInstance = ref(null) //原生的quill对象，包含所有api
 const dialog = ref(false)
 const loading = ref(false)
+const costTime = ref(0) //请求预计花费的时间
+const counter = ref(null)  //请求中计时花费了多少秒，每秒更新
+const timeCount = ref(0)
 const form = ref(null)
 const themeRef = ref(null)
 const outlineRef = ref(null)
@@ -380,10 +404,12 @@ const isNeedReset = computed(() => formData.theme || formData.outline)
 
 watch(() => formData.type, onReset)
 
-// watch(() => mousePosition.value, (n) => { console.log(n) })
-
 watch(article, () => {
   selectingForCopy.value = false
+})
+
+watch(loading, (n, o) => {
+  if(n && !o) suggestions.value.length = 0
 })
 
 onMounted(() => {
@@ -416,6 +442,14 @@ onMounted(() => {
   generateOpenai()
   quillInstance = quill.value.getQuill()
 })
+
+/** 估算请求需要花费的时间，单位：秒 */
+function computeWaitTime(type, input) {
+  let len = input.replaceAll(/\n+|\s+/g, ' ').split(' ').filter(o => !!o).length
+  if (type === TONE_REWRITE) return Math.max(parseInt(len / 15), 2)
+  else if (type === DEEPL) return 0
+  else return 12
+}
 
 function getContent() {
   return quill.value.getText()
@@ -460,7 +494,7 @@ function requestAI() {
     }
   }
   let p = openai.value.createCompletion({
-    model: "text-davinci-002",
+    model: "text-davinci-003",
     prompt: selectedType.value?.genPrompt(formData.mood, formData.theme),
     temperature: 0.1,
     max_tokens: 600,
@@ -496,12 +530,16 @@ function requestTranslate() {
  * 发起请求
  */
 function onCreate() {
+  costTime.value = 0
+  timeCount.value = 0
+  let t = computeWaitTime(formData.type, formData.theme)
   if (formData.type === DEEPL) {
     if (!settingForm.authKey) {
       dialog.value = true
       return
     }
     loading.value = true
+    costTime.value = t
     requestTranslate().then(res => {
       suggestions.value = res.data.translations.map(c => c.text.trim())
     }).finally(() => {
@@ -513,10 +551,13 @@ function onCreate() {
       return
     }
     loading.value = true
+    costTime.value = t
+    counter.value = setInterval(()=> {timeCount.value++}, 1000)
     requestAI().then(res => {
       suggestions.value = res.data.choices.map(c => c.text.trim())
     }).finally(() => {
       loading.value = false
+      clearInterval(counter.value)
     })
   }
 }
@@ -528,6 +569,10 @@ function onCreate() {
 function setText(text) {
   article.value = text
   quill.value.setText(text)
+}
+
+function onClearArticle() {
+  setText('')
 }
 
 /**
@@ -560,7 +605,7 @@ function onCopySuggestion(i) {
     let t = article.value.slice(0, index) + value + article.value.slice(index)
     setText(t)
   }
-  quillInstance.setSelection(index + value.length)
+  quillInstance.setSelection(index, value.length)
   mousePosition.value.index = index + value.length
   suggestions.value.splice(i, 1)
 }
