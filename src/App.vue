@@ -110,9 +110,9 @@
 
         <div class="suggestions mt-5">
           <div v-if="(costTime && loading)" class="text-subtitle-2 text-center">
-            It will take about {{costTime}} seconds.
+            It will take about {{ costTime }} seconds.
             <br>
-            <p v-if="timeCount">{{timeCount}} seconds passed...</p>
+            <p v-if="timeCount">{{ timeCount }} seconds passed...</p>
           </div>
           <div class="text-subtitle-2 font-weight-regular" v-if="suggestions.length">
             Add suggestions to the editor
@@ -149,8 +149,7 @@
           <v-spacer></v-spacer>
           <v-tooltip text="clear all" location="top">
             <template v-slot:activator="{ props }">
-              <v-btn icon="mdi-delete" size="small" class="mr-3" variant="tonal" @click="onClearArticle"
-                v-bind="props">
+              <v-btn icon="mdi-delete" size="small" class="mr-3" variant="tonal" @click="onClearArticle" v-bind="props">
               </v-btn>
             </template>
           </v-tooltip>
@@ -409,7 +408,7 @@ watch(article, () => {
 })
 
 watch(loading, (n, o) => {
-  if(n && !o) suggestions.value.length = 0
+  if (n && !o) suggestions.value.length = 0
 })
 
 onMounted(() => {
@@ -552,7 +551,7 @@ function onCreate() {
     }
     loading.value = true
     costTime.value = t
-    counter.value = setInterval(()=> {timeCount.value++}, 1000)
+    counter.value = setInterval(() => { timeCount.value++ }, 1000)
     requestAI().then(res => {
       suggestions.value = res.data.choices.map(c => c.text.trim())
     }).finally(() => {
