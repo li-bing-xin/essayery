@@ -114,12 +114,6 @@
             <br>
             <p v-if="timeCount">{{timeCount}} seconds passed...</p>
           </div>
-          <div class="text-subtitle-2 font-weight-regular" v-if="suggestions.length">
-            Add suggestions to the editor
-            <v-btn @click="suggestions.length = 0" class="ml-2" size="x-small" variant="tonal">
-              Clear
-            </v-btn>
-          </div>
           <v-card v-for="(suggestion, index) in suggestions" class="pa-4 pb-0 my-4 pointer" :key="sug" elevation="2"
             hover @click="onCopySuggestion(index)">
             <p>{{ suggestion }}</p>
