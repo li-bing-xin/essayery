@@ -5,6 +5,20 @@
         <div class="justify-space-between align-center flex-row flex mb-3 w-100">
           <div class="text-h5 logo no-select font-weight-bold">AI Writer</div>
           <div>
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn color="primary" v-bind="props" class="mr-3" size="small">
+                  Identity
+                </v-btn>
+              </template>
+              <v-list density="compact" :selected="[identity]">
+                <v-list-item v-for="(item) in Object.keys(IDENTITY)" :key="item" :value="item"
+                  @click="onSelectIdentity(item)">
+                  <v-list-item-title>{{ item }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+
             <v-dialog v-model="dialog" :width="540">
               <template v-slot:activator="{ props }">
                 <v-icon icon="mdi-cog-outline" class="pointer hover-primary" @click="dialog = true" v-bind="props">
@@ -46,27 +60,23 @@
               {{ selectedType.theme.title }}
             </h3>
 
-            <v-textarea variant="outlined" ref="themeRef" auto-grow v-model="formData.theme"
-              :rows="selectedType.theme.rows || 1" :max-rows="4" :counter="selectedType.theme.maxlength"
-              :counter-value="() => formData.theme.length" :placeholder="selectedType.theme.placeholder"
-              color="primary">
-              <template v-slot:append-inner>
-                <v-tooltip text="Copy from the right">
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(THEME)"
-                      class="hover-primary"></v-icon>
-                  </template>
-                </v-tooltip>
-              </template>
-              <template v-slot:append-icon>
-                <v-tooltip text="Copy from the right">
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(THEME)"
-                      class="hover-primary"></v-icon>
-                  </template>
-                </v-tooltip>
-              </template>
-            </v-textarea>
+            <div class="position-relative">
+              <v-textarea variant="outlined" ref="themeRef" auto-grow v-model="formData.theme"
+                :rows="selectedType.theme.rows || 2" :max-rows="4" :counter="selectedType.theme.maxlength"
+                :counter-value="() => formData.theme.length" :placeholder="selectedType.theme.placeholder"
+                color="primary">
+                <template v-slot:append-inner>
+                  <v-tooltip text="Copy from the right">
+                    <template v-slot:activator="{ props }">
+                      <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(THEME)"
+                        class="hover-primary"></v-icon>
+                    </template>
+                  </v-tooltip>
+                </template>
+              </v-textarea>
+              <v-icon v-if="formData.theme.length" icon="mdi-close-circle" @click.stop="onClearInputValue(THEME)"
+                class="clear-icon" :size="20"></v-icon>
+            </div>
           </div>
 
           <div v-if="selectedType.outline">
@@ -74,26 +84,45 @@
               {{ selectedType.outline.title }}
             </h3>
 
-            <v-textarea variant="outlined" ref="outlineRef" auto-grow v-model="formData.outline" :rows="1" :max-rows="2"
-              :counter="selectedType.outline.maxlength" :counter-value="() => formData.outline.length"
-              :placeholder="selectedType.outline.placeholder" color="primary">
-              <template v-slot:append-inner>
-                <v-tooltip text="Copy from the right">
-                  <template v-slot:activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(OUTLINE)"
-                      class="hover-primary"></v-icon>
-                  </template>
-                </v-tooltip>
-              </template>
-            </v-textarea>
+            <div class="position-relative">
+              <v-textarea variant="outlined" ref="outlineRef" auto-grow v-model="formData.outline" :rows="2"
+                :max-rows="2" :counter="selectedType.outline.maxlength" :counter-value="() => formData.outline.length"
+                :placeholder="selectedType.outline.placeholder" color="primary">
+                <template v-slot:append-inner>
+                  <v-tooltip text="Copy from the right">
+                    <template v-slot:activator="{ props }">
+                      <v-icon v-bind="props" icon="mdi-select" @click.stop="onSelectForInput(OUTLINE)"
+                        class="hover-primary"></v-icon>
+                    </template>
+                  </v-tooltip>
+                </template>
+              </v-textarea>
+              <v-icon v-if="formData.outline.length" icon="mdi-close-circle" @click.stop="onClearInputValue(OUTLINE)"
+                class="clear-icon" :size="20"></v-icon>
+            </div>
+
           </div>
 
-          <div v-if="formData.type !== DEEPL" class="mb-3 pr-15">
+          <div
+            v-if="formData.type === ESSAY_OUTLINE || formData.type === OUTLINE_TO_PARAGRAPH || formData.type === KEYWORDS_TO_PARAGRAPH || formData.type === TONE_REWRITE"
+            class="mb-3 pr-15">
             <h3 class="mb-3 no-select">Tone</h3>
             <div v-for="mood in MOODS" :key="mood" class="mood-wrap">
               <v-btn class="mb-1 mr-1" :variant="formData.mood === mood ? 'tonal' : 'text'"
                 :color="formData.mood === mood ? 'primary' : ''" size="small" @click="onToggleMood(mood)">
                 {{ mood }}
+              </v-btn>
+            </div>
+          </div>
+
+          <div
+            v-if="formData.type === CONTENT_REWRITE || formData.type === LEVEL_REWRITE || formData.type === STYLE_REWRITE"
+            class="mb-3">
+            <h3 class="mb-3 no-select">Option</h3>
+            <div v-for="option in selectedType.options" :key="option" class="mood-wrap options">
+              <v-btn class="mb-1 mr-1 rewrite-option" :variant="formData.option === option ? 'tonal' : 'text'"
+                :color="formData.option === option ? 'primary' : ''" size="small" @click="onSelectOption(option)">
+                {{ option }}
               </v-btn>
             </div>
           </div>
@@ -180,7 +209,7 @@
 import { QuillEditor } from "@vueup/vue-quill"
 import DeepL from 'deepl'
 import { Configuration, OpenAIApi } from "openai"
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, onMounted, reactive, ref, watch, watchEffect } from "vue"
 
 const quillOptions = {
   modules: {
@@ -199,6 +228,9 @@ const DEEPL = 'Translate to English'
 const ESSAY_OUTLINE = 'Essay Outline'
 const OUTLINE_TO_PARAGRAPH = 'Outline to Paragraph'
 const KEYWORDS_TO_PARAGRAPH = 'Keywords to Paragraph'
+const CONTENT_REWRITE = 'Content Rewrite'
+const LEVEL_REWRITE = 'Level Rewrite'
+const STYLE_REWRITE = 'Style Rewrite'
 const TONE_REWRITE = 'Tone Rewrite'
 const POSITIVE = 'positive'
 const EXCITED = 'excited'
@@ -206,8 +238,74 @@ const GENTLE = 'gentle'
 const FORMAL = 'formal'
 const CASUAL = 'casual'
 const WITTY = 'witty'
-const MOODS = [POSITIVE, EXCITED, GENTLE, FORMAL, CASUAL, WITTY]
+const MOODS = [POSITIVE, FORMAL, EXCITED, GENTLE, CASUAL, WITTY]
+const IDENTITY = {
+  'None': '',
+  'Middle school': ' in a middle school student language',
+  'High school': ' in a high school student language',
+  'College': ' in a college student language',
+  'Master': " in a Master's degree language",
+  'Phd': ' in a Phd language',
+}
+const optionDescriptionMap = {
+  'Better logic': 'rewrite the following essay using better logic',
+  'Concise': 'rewrite the following essay and make it concise',
+  'Proficient': 'rewrite the following essay using proficient English',
+  'Intermediate': 'rewrite the following essay using intermediate English',
+  'Beginner': 'rewrite the following essay using beginner English',
+  'Descriptive': 'rewrite the following essay using descriptive style to evoke sensory experiences',
+  'Creative': 'rewrite the following essay using artistic language',
+  'Persuasive': 'rewrite the following essay using persuasive style',
+}
 const TASKS = [
+  {
+    type: CONTENT_REWRITE,
+    theme: {
+      title: "Text to rewrite",
+      placeholder: 'Add the text you want to rewrite.',
+      help: "How to give a effective brief.",
+      maxlength: 1000
+    },
+    options: ['Better logic', 'Concise'],
+    genPrompt: (option, text) => {
+      let prompt = optionDescriptionMap[option]
+      if (identity.value) prompt += IDENTITY[identity.value]
+      if (text) prompt += `\n${text}:`
+      return prompt
+    }
+  },
+  {
+    type: LEVEL_REWRITE,
+    theme: {
+      title: "Text to rewrite",
+      placeholder: 'Add the text you want to rewrite.',
+      help: "How to give a effective brief.",
+      maxlength: 1000
+    },
+    options: ['Proficient', 'Intermediate', 'Beginner'],
+    genPrompt: (option, text) => {
+      let prompt = optionDescriptionMap[option]
+      if (identity.value) prompt += IDENTITY[identity.value]
+      if (text) prompt += `\n${text}:`
+      return prompt
+    }
+  },
+  {
+    type: STYLE_REWRITE,
+    theme: {
+      title: "Text to rewrite",
+      placeholder: 'Add the text you want to rewrite.',
+      help: "How to give a effective brief.",
+      maxlength: 1000
+    },
+    options: ['Descriptive', 'Creative', 'Persuasive'],
+    genPrompt: (option, text) => {
+      let prompt = optionDescriptionMap[option]
+      if (identity.value) prompt += IDENTITY[identity.value]
+      if (text) prompt += `\n${text}:`
+      return prompt
+    }
+  },
   {
     type: DEEPL,
     theme: {
@@ -370,6 +468,7 @@ const openAISettingForm = ref(null)
 const mousePosition = ref({ index: 0, length: 0 })
 const openai = ref(null)
 const toast = ref(false)
+const identity = ref('None')
 const toastMessage = ref('')
 const settingForm = reactive({
   apiKey: '',
@@ -379,7 +478,8 @@ const formData = reactive({
   type: TASKS[0].type,
   theme: "",
   outline: "",
-  mood: ''
+  mood: '',
+  option: 'Better logic'
 })
 const wordsCount = computed(() => {
   let t = article.value.replaceAll(/\n+|\s+/g, ' ')
@@ -395,7 +495,12 @@ const invalid = computed(() => {
 })
 const isNeedReset = computed(() => formData.theme || formData.outline)
 
-watch(() => formData.type, onReset)
+watch(() => formData.type, (n, o) => {
+  onReset()
+  if (n === CONTENT_REWRITE || n === LEVEL_REWRITE || n === STYLE_REWRITE) {
+    formData.option = TASKS.find(t => t.type === n).options[0]
+  }
+})
 
 watch(article, () => {
   selectingForCopy.value = false
@@ -432,6 +537,8 @@ onMounted(() => {
     let authKey = localStorage.getItem("authKey")
     if (authKey) settingForm.authKey = authKey
   }
+  let iden = localStorage.getItem("identity")
+  if (iden) identity.value = iden
   generateOpenai()
   quillInstance = quill.value.getQuill()
 })
@@ -439,7 +546,7 @@ onMounted(() => {
 /** 估算请求需要花费的时间，单位：秒 */
 function computeWaitTime(type, input) {
   let len = input.replaceAll(/\n+|\s+/g, ' ').split(' ').filter(o => !!o).length
-  if (type === TONE_REWRITE) return Math.max(parseInt(len / 15), 2)
+  if (type === TONE_REWRITE || type === CONTENT_REWRITE || type === STYLE_REWRITE || type === LEVEL_REWRITE) return Math.max(parseInt(len / 15), 2)
   else if (type === DEEPL) return 0
   else return 12
 }
@@ -457,6 +564,12 @@ function onReset() {
   formData.theme = ""
   formData.outline = ""
   formData.mood = ""
+  formData.option = ""
+}
+
+function onSelectIdentity(v) {
+  identity.value = v
+  localStorage.setItem("identity", v)
 }
 
 /**
@@ -466,6 +579,10 @@ function onReset() {
 function onToggleMood(mood) {
   if (formData.mood === mood) formData.mood = ''
   else formData.mood = mood
+}
+
+function onSelectOption(option) {
+  formData.option = option
 }
 
 /**
@@ -488,7 +605,7 @@ function requestAI() {
   }
   let p = openai.value.createCompletion({
     model: "text-davinci-003",
-    prompt: selectedType.value?.genPrompt(formData.mood, formData.theme),
+    prompt: selectedType.value?.genPrompt(formData.mood || formData.option, formData.theme),
     temperature: 0.1,
     max_tokens: 600,
     top_p: 1.0,
@@ -656,6 +773,10 @@ function onSaveAPIKey() {
   })
 }
 
+function onClearInputValue(type) {
+  formData[type] = ''
+}
+
 function onSelectForInput(type) {
   selectingForCopy.value = true
   selectingForCopyType.value = type
@@ -707,6 +828,10 @@ html {
   width: 85px;
 }
 
+.mood-wrap.options {
+  width: unset;
+}
+
 .content {
   box-shadow: 0 0 2px 0 #ccc;
 }
@@ -753,6 +878,13 @@ html {
 
 .hover-primary:hover {
   color: #7bb5a3;
+}
+
+.clear-icon {
+  position: absolute !important;
+  right: 14px;
+  bottom: 33px;
+  color: #aaa !important;
 }
 
 .no-select {
